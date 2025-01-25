@@ -9,8 +9,6 @@ export default function Home() {
           Click the microphone to start recording. Speak in any language, and
           we&apos;ll translate it to English.
         </p>
-        {/* <VoiceRecorder /> */}
-        {/* <Microphone /> */}
         <AudioRecorder />
       </div>
     </main>

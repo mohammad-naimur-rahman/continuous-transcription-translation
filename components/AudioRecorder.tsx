@@ -1,51 +1,125 @@
 'use client'
 import axios from 'axios'
 import { Mic, MicOff } from 'lucide-react'
-import { useRef, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { Button } from './ui/button'
 
 const AudioRecorder = () => {
-  // output states
+  const [isRecording, setIsRecording] = useState(false)
   const [transcription, setTranscription] = useState<string>('')
   const [translation, setTranslation] = useState<string>('')
-
-  // recording states
-  const [isRecording, setIsRecording] = useState(false)
   const mediaStream = useRef<MediaStream | null>(null)
   const mediaRecorder = useRef<MediaRecorder | null>(null)
   const chunks = useRef<Blob[]>([])
+  const silenceTimeout = useRef<NodeJS.Timeout | null>(null)
+  const audioContextRef = useRef<AudioContext | null>(null)
+  const analyserRef = useRef<AnalyserNode | null>(null)
 
-  const startRecording = async () => {
-    setIsRecording(true)
+  useEffect(() => {
+    if (isRecording) {
+      startListening()
+    } else {
+      stopListening()
+    }
+    return () => stopListening()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isRecording])
+
+  const startListening = async () => {
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true })
       mediaStream.current = stream
-      mediaRecorder.current = new MediaRecorder(stream)
-      mediaRecorder.current.ondataavailable = e => {
-        if (e.data.size > 0) {
-          chunks.current.push(e.data)
+
+      // Initialize audio context and analyser
+      audioContextRef.current = new AudioContext()
+      const source = audioContextRef.current.createMediaStreamSource(stream)
+      analyserRef.current = audioContextRef.current.createAnalyser()
+      source.connect(analyserRef.current)
+      analyserRef.current.fftSize = 256
+      const bufferLength = analyserRef.current.frequencyBinCount
+      const dataArray = new Uint8Array(bufferLength)
+
+      const checkForSpeech = () => {
+        analyserRef.current?.getByteFrequencyData(dataArray)
+        const sum = dataArray.reduce((a, b) => a + b, 0)
+        const average = sum / bufferLength
+
+        //console.log('Average audio level:', average) // Debugging
+
+        if (average > 20) {
+          // Start recording if average is above threshold
+          console.log('Speech detected, starting recording', average) // Debugging
+          if (
+            !mediaRecorder.current ||
+            mediaRecorder.current.state === 'inactive'
+          ) {
+            startRecording()
+          }
+          if (silenceTimeout.current) {
+            clearTimeout(silenceTimeout.current)
+            silenceTimeout.current = null
+          }
+        } else {
+          if (
+            mediaRecorder.current &&
+            mediaRecorder.current.state === 'recording'
+          ) {
+            if (!silenceTimeout.current) {
+              silenceTimeout.current = setTimeout(() => {
+                console.log('Silence detected, stopping recording') // Debugging
+                stopRecording()
+              }, 2000) // Stop after 2 seconds of silence
+            }
+          }
+        }
+
+        if (isRecording) {
+          requestAnimationFrame(checkForSpeech)
         }
       }
-      mediaRecorder.current.onstop = async () => {
-        const recordedBlob = new Blob(chunks.current, { type: 'audio/webm' })
-        await sendAudioToApi(recordedBlob)
-        chunks.current = []
-      }
-      mediaRecorder.current.start()
+
+      checkForSpeech()
     } catch (error) {
       console.error('Error accessing microphone:', error)
     }
   }
 
+  const startRecording = () => {
+    if (mediaStream.current) {
+      mediaRecorder.current = new MediaRecorder(mediaStream.current)
+      mediaRecorder.current.ondataavailable = e => {
+        if (e.data.size > 0) {
+          console.log('Data available:', e.data) // Debugging
+          chunks.current.push(e.data)
+        }
+      }
+      mediaRecorder.current.onstop = async () => {
+        const recordedBlob = new Blob(chunks.current, { type: 'audio/webm' })
+        console.log('Recording stopped, sending data to API') // Debugging
+        await sendAudioToApi(recordedBlob)
+        chunks.current = []
+      }
+      mediaRecorder.current.start()
+      console.log('Recording started') // Debugging
+    }
+  }
+
   const stopRecording = () => {
-    setIsRecording(false)
     if (mediaRecorder.current && mediaRecorder.current.state === 'recording') {
       mediaRecorder.current.stop()
     }
+  }
+
+  const stopListening = () => {
     if (mediaStream.current) {
-      mediaStream.current.getTracks().forEach(track => {
-        track.stop()
-      })
+      mediaStream.current.getTracks().forEach(track => track.stop())
+    }
+    if (audioContextRef.current) {
+      audioContextRef.current.close()
+    }
+    if (silenceTimeout.current) {
+      clearTimeout(silenceTimeout.current)
+      silenceTimeout.current = null
     }
   }
 
@@ -63,29 +137,19 @@ const AudioRecorder = () => {
           'Content-Type': 'multipart/form-data'
         }
       })
-      const data = res.data
-      setTranscription(data.transcription)
-      setTranslation(data.translation)
+      const { transcription = '', translation = '' } = res.data
+      setTranscription(transcription)
+      setTranslation(translation)
     } catch (error) {
-      console.error(error)
+      console.error('Error sending audio to API:', error) // Debugging
     }
   }
 
   return (
     <div className='flex flex-col gap-2 items-center justify-center'>
-      {isRecording ? (
-        <Button
-          onClick={stopRecording}
-          size='icon'
-          className='bg-red-500 hover:bg-red-600'
-        >
-          <MicOff />
-        </Button>
-      ) : (
-        <Button onClick={startRecording} size='icon'>
-          <Mic />
-        </Button>
-      )}
+      <Button onClick={() => setIsRecording(!isRecording)} size='icon'>
+        {isRecording ? <MicOff /> : <Mic />}
+      </Button>
       <p>{transcription}</p>
       <p>{translation}</p>
     </div>
