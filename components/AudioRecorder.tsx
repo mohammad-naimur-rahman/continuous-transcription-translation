@@ -8,6 +8,9 @@ const AudioRecorder = () => {
   const [isRecording, setIsRecording] = useState(false)
   const [transcription, setTranscription] = useState<string>('')
   const [translation, setTranslation] = useState<string>('')
+  const [recordings, setRecordings] = useState<
+    { transcription: string; translation: string }[]
+  >([])
   const mediaStream = useRef<MediaStream | null>(null)
   const mediaRecorder = useRef<MediaRecorder | null>(null)
   const chunks = useRef<Blob[]>([])
@@ -140,18 +143,45 @@ const AudioRecorder = () => {
       const { transcription = '', translation = '' } = res.data
       setTranscription(transcription)
       setTranslation(translation)
+      setRecordings(prev => [...prev, { transcription, translation }])
     } catch (error) {
       console.error('Error sending audio to API:', error) // Debugging
     }
   }
 
+  const handleStop = () => {
+    stopRecording()
+    stopListening()
+    // Reset transcription and translation
+    setTranscription('')
+    setTranslation('')
+  }
+
   return (
-    <div className='flex flex-col gap-2 items-center justify-center'>
-      <Button onClick={() => setIsRecording(!isRecording)} size='icon'>
-        {isRecording ? <MicOff /> : <Mic />}
-      </Button>
-      <p>{transcription}</p>
-      <p>{translation}</p>
+    <div className='flex flex-col items-center justify-start h-[80vh]'>
+      <div className='flex flex-col items-center justify-center'>
+        <Button onClick={() => setIsRecording(!isRecording)} size='icon'>
+          {isRecording ? <MicOff /> : <Mic />}
+        </Button>
+        {recordings.length > 0 && (
+          <p className='mt-3'>Current Transcription: {transcription}</p>
+        )}
+        {recordings.length > 0 && <p>Current Translation: {translation}</p>}
+      </div>
+      {recordings.length > 0 && (
+        <div className='overflow-y-auto w-full flex-1 border border-gray-200 rounded-md mt-10'>
+          {recordings.map((recording, index) => (
+            <div key={index} className='p-2 border-b'>
+              <p>
+                <strong>Transcription:</strong> {recording.transcription}
+              </p>
+              <p>
+                <strong>Translation:</strong> {recording.translation}
+              </p>
+            </div>
+          ))}
+        </div>
+      )}
     </div>
   )
 }
