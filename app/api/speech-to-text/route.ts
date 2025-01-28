@@ -25,7 +25,7 @@ export async function POST(req: Request) {
     const buffer = Buffer.from(byteArray)
 
     const path = join(process.cwd(), 'uploads', file.name)
-    await writeFile(path, buffer)
+    await writeFile(path, buffer as unknown as Uint8Array)
 
     const [transcription, translation] = await Promise.all([
       openai.audio.transcriptions.create({
