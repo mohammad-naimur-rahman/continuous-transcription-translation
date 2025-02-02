@@ -6,12 +6,6 @@ import { writeFile } from 'fs/promises'
 import { NextResponse } from 'next/server'
 import { join } from 'path'
 
-// export const config = {
-//   api: {
-//     bodyParser: false // Disable Next.js's default body parser
-//   }
-// }
-
 export async function POST(req: Request) {
   try {
     const formData = await req.formData()

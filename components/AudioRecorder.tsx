@@ -134,8 +134,11 @@ const AudioRecorder = () => {
     const formData = new FormData()
     formData.append('file', audioFile)
 
+    // const API_ROUTE = '/api/speech-to-text'
+    const API_ROUTE = 'http://localhost:5000/speech-to-text'
+
     try {
-      const res = await axios.post('/api/speech-to-text', formData, {
+      const res = await axios.post(API_ROUTE, formData, {
         headers: {
           'Content-Type': 'multipart/form-data'
         }
