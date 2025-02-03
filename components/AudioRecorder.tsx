@@ -135,7 +135,7 @@ const AudioRecorder = () => {
     formData.append('file', audioFile)
 
     // const API_ROUTE = '/api/speech-to-text'
-    const API_ROUTE = 'http://localhost:5000/speech-to-text'
+    const API_ROUTE = 'https://translate.lyztech.com:5000/speech-to-text'
 
     try {
       const res = await axios.post(API_ROUTE, formData, {
