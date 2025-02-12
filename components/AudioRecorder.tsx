@@ -1,11 +1,21 @@
 'use client'
-import { API_URL } from '@/config'
+import { API_URL, supportedLanguages } from '@/config'
 import axios from 'axios'
 import { Mic, MicOff } from 'lucide-react'
 import { useEffect, useRef, useState } from 'react'
 import { Button } from './ui/button'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue
+} from './ui/select'
 
 const AudioRecorder = () => {
+  const [selectedLanguage, setSelectedLanguage] = useState(
+    supportedLanguages[0].code
+  )
   const [isRecording, setIsRecording] = useState(false)
   const [transcription, setTranscription] = useState<string>('')
   const [translation, setTranslation] = useState<string>('')
@@ -134,7 +144,7 @@ const AudioRecorder = () => {
     })
     const formData = new FormData()
     formData.append('audio', audioFile)
-    formData.append('targetLanguage', 'es')
+    formData.append('targetLanguage', selectedLanguage)
 
     const API_ROUTE = `${API_URL}/google-speech-to-text`
 
@@ -164,6 +174,19 @@ const AudioRecorder = () => {
   return (
     <div className='flex flex-col items-center justify-start h-[80vh]'>
       <div className='flex flex-col items-center justify-center'>
+        <Select onValueChange={setSelectedLanguage} value={selectedLanguage}>
+          <SelectTrigger className='w-[180px] mb-3'>
+            <SelectValue placeholder='Language' />
+          </SelectTrigger>
+          <SelectContent>
+            {supportedLanguages.map(language => (
+              <SelectItem key={language.code} value={language.code}>
+                {language.language}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+
         <Button onClick={() => setIsRecording(!isRecording)} size='icon'>
           {isRecording ? <MicOff /> : <Mic />}
         </Button>
