@@ -1,4 +1,5 @@
 'use client'
+import { API_URL } from '@/config'
 import axios from 'axios'
 import { Mic, MicOff } from 'lucide-react'
 import { useEffect, useRef, useState } from 'react'
@@ -132,10 +133,10 @@ const AudioRecorder = () => {
       type: 'audio/webm'
     })
     const formData = new FormData()
-    formData.append('file', audioFile)
+    formData.append('audio', audioFile)
+    formData.append('targetLanguage', 'es')
 
-    // const API_ROUTE = '/api/speech-to-text'
-    const API_ROUTE = 'https://translate.lyztech.com:5000/speech-to-text'
+    const API_ROUTE = `${API_URL}/google-speech-to-text`
 
     try {
       const res = await axios.post(API_ROUTE, formData, {
